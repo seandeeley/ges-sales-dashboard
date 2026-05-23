@@ -177,6 +177,28 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
 .dow-sample{font-size:10px;color:var(--hint);font-weight:500;margin-top:2px}
 .activity-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
 .activity-note{font-size:11px;color:var(--hint);font-weight:500;margin-top:16px;font-style:italic}
+.step-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.step-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--hint);margin-bottom:12px}
+.import-wrap{max-width:680px;margin:0 auto}
+.import-step{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+.import-step-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:14px}
+.import-textarea{font-family:'Nunito',sans-serif;width:100%;background:var(--navy3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:500;padding:12px 14px;outline:none;resize:vertical;min-height:200px;line-height:1.6;transition:border-color 0.15s}
+.import-textarea:focus{border-color:var(--orange)}
+.import-textarea::placeholder{color:var(--hint)}
+.import-warning{background:rgba(236,105,35,0.1);border:1px solid rgba(236,105,35,0.3);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--orange);margin-bottom:10px}
+.import-success{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:#4ade80;margin-bottom:10px}
+.preview-table{width:100%;border-collapse:collapse;font-size:13px}
+.preview-table th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--hint);border-bottom:1px solid var(--border2)}
+.preview-table th.r{text-align:right}
+.preview-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:500}
+.preview-table td.r{text-align:right}
+.preview-table tr:last-child td{border-bottom:none}
+.val-zero{color:var(--hint)}
+.val-pos{color:var(--text);font-weight:700}
+.rep-dot{display:inline-flex;align-items:center;gap:8px}
+.import-history-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.import-history-row:last-child{border-bottom:none}
+.badge-ok{background:rgba(74,222,128,0.12);color:#4ade80;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
 
 /* INPUT */
@@ -297,6 +319,7 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
     <button class="nav-btn" onclick="showPage('activity',this)">Activity</button>
     <button class="nav-btn protected" onclick="gotoProtected('input',this)">+ Input</button>
     <button class="nav-btn protected" onclick="gotoProtected('admin',this)">Admin</button>
+    <button class="nav-btn protected" onclick="gotoProtected('import',this)">Import</button>
   </div>
   <div class="header-right">
     <div class="last-updated" id="last-updated"></div>
@@ -330,6 +353,8 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
     <button class="bnav-btn protected-nav" id="bnav-admin" onclick="gotoProtected('admin',this,'bnav-admin')">
       <span class="bnav-icon">&#9881;</span>Admin
     </button>
+    <button class="bnav-btn protected-nav" id="bnav-import" onclick="gotoProtected('import',this,'bnav-import')">
+      <span class="bnav-icon">&#8593;</span>Import
   </div>
 </nav>
 
@@ -340,6 +365,8 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
 <div id="activity" class="page"></div>
 <div id="input" class="page"></div>
 <div id="admin" class="page"></div>
+<div id="import" class="page"></div>
+<div id="import" class="page"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -551,6 +578,8 @@ function renderAll(){
   else if(id==='activity')renderActivity();
   else if(id==='input')renderInput();
   else if(id==='admin')renderAdmin();
+  else if(id==='import')renderImport();
+  else if(id==='import')renderImport();
 }
 
 /* ── YTD ── */
@@ -1206,6 +1235,430 @@ function copyText(){
     const ta=document.createElement('textarea');ta.value=lines.join('\n');ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
   });
   showToast('Copied to clipboard');
+}
+
+/* ── IMPORT ── */
+let importParsed = null;
+let importHistory = [];
+
+function renderImport(){
+  const el = document.getElementById('import');
+  const today = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate()-1);
+  const dd = `${yesterday.getFullYear()}-${pad(yesterday.getMonth()+1)}-${pad(yesterday.getDate())}`;
+
+  el.innerHTML = `
+    <div class="import-wrap">
+      <div class="import-step">
+        <div class="import-step-title">Step 1 — Select the date for this entry</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Date</label>
+          <input type="date" id="import-date" value="${dd}">
+        </div>
+      </div>
+      <div class="import-step">
+        <div class="import-step-title">Step 2 — Paste the WhatsApp message</div>
+        <textarea class="import-textarea" id="import-raw" placeholder="Paste the daily message exactly as it appears in WhatsApp. Lines with 2 Date, Inv 2 Date etc. are ignored automatically."></textarea>
+        <button class="btn-primary" style="margin-top:12px" onclick="importParse()">Parse message</button>
+      </div>
+      <div class="import-step" id="import-preview-step" style="display:none">
+        <div class="import-step-title">Step 3 — Review and confirm</div>
+        <div id="import-warnings"></div>
+        <div id="import-preview-content"></div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-primary" id="import-confirm-btn" onclick="importSave()">Save to dashboard</button>
+          <button class="btn-secondary" onclick="importReset()">Start over</button>
+        </div>
+      </div>
+      <div class="import-step" id="import-history-step" style="display:none">
+        <div class="import-step-title">Imported this session</div>
+        <div id="import-history-list"></div>
+      </div>
+    </div>
+  `;
+}
+
+function importParseVal(str){
+  if(!str) return 0;
+  return parseFloat(str.replace(/[^0-9.]/g,'')) || 0;
+}
+
+function importParse(){
+  const dateVal = document.getElementById('import-date')?.value;
+  if(!dateVal){ showToast('Please select a date first'); return; }
+  const raw = document.getElementById('import-raw')?.value.trim();
+  if(!raw){ showToast('Please paste a message first'); return; }
+
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  let section = null;
+  const data = {};
+  REPS.forEach(r=>{ data[r.id] = {q_count:0,q_val:0,i_count:0,i_val:0,o_count:0,o_val:0}; });
+  const repNames = {};
+  REPS.forEach(r=>{ repNames[r.name.toLowerCase()] = r.id; });
+
+  lines.forEach(line=>{
+    const ll = line.toLowerCase();
+    if(ll.includes('quotes today'))     { section='quotes';   return; }
+    if(ll.includes('invoices today'))   { section='invoices'; return; }
+    if(ll.includes('orders today'))     { section='orders';   return; }
+    if(ll.includes('2 date') || ll.includes('to date')) { return; }
+    if(!section) return;
+
+    const match = line.match(/^([A-Za-z]+)\s*[-–]\s*(\d+)\s*=\s*R?([\d\s,.]+)/i);
+    if(!match) return;
+    const repName = match[1].toLowerCase();
+    const count   = parseInt(match[2]) || 0;
+    const value   = importParseVal(match[3]);
+    const repId   = repNames[repName];
+    if(!repId) return;
+
+    if(section==='quotes')  { data[repId].q_count=count; data[repId].q_val=value; }
+    if(section==='invoices'){ data[repId].i_count=count; data[repId].i_val=value; }
+    if(section==='orders')  { data[repId].o_count=count; data[repId].o_val=value; }
+  });
+
+  importParsed = { date: dateVal, data };
+  importShowPreview(dateVal, data);
+}
+
+function importShowPreview(dateVal, data){
+  const d = new Date(dateVal+'T00:00:00');
+  const dLabel = d.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const warnings = [];
+  REPS.forEach(rep=>{
+    const r = data[rep.id];
+    if(r.q_count===0 && r.q_val===0 && r.i_count===0 && r.i_val===0 && r.o_count===0 && r.o_val===0){
+      warnings.push(`${rep.name} has no data — check the message includes their figures.`);
+    }
+  });
+
+  document.getElementById('import-warnings').innerHTML = warnings.map(w=>`<div class="import-warning">${w}</div>`).join('');
+
+  let rows = '';
+  REPS.forEach(rep=>{
+    const r = data[rep.id];
+    rows += `<tr>
+      <td><span class="rep-dot">
+        <span style="width:22px;height:22px;border-radius:50%;background:${rep.colour};color:${rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${rep.initials}</span>
+        ${rep.name}
+      </span></td>
+      <td class="r ${r.q_count===0?'val-zero':'val-pos'}">${r.q_count} · ${fmt(r.q_val)}</td>
+      <td class="r ${r.i_count===0?'val-zero':'val-pos'}">${r.i_count} · ${fmt(r.i_val)}</td>
+      <td class="r ${r.o_count===0?'val-zero':'val-pos'}">${r.o_count} · ${fmt(r.o_val)}</td>
+    </tr>`;
+  });
+
+  document.getElementById('import-preview-content').innerHTML = `
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${dLabel}</div>
+    <table class="preview-table">
+      <thead><tr>
+        <th>Rep</th><th class="r">Quotes</th><th class="r">Invoiced</th><th class="r">Orders</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  document.getElementById('import-preview-step').style.display = 'block';
+  document.getElementById('import-preview-step').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function importSave(){
+  if(!importParsed){ showToast('Nothing to save'); return; }
+  const btn = document.getElementById('import-confirm-btn');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  let existing = {};
+  try{
+    const rows = await api('/rest/v1/daily_entries?select=*&entry_date=eq.'+importParsed.date);
+    if(rows) rows.forEach(r=>{ existing[r.rep] = r; });
+  }catch(e){}
+
+  const entries = REPS.map(rep=>{
+    const ex = existing[rep.id];
+    const p  = importParsed.data[rep.id];
+    const allZero = p.q_count===0 && p.q_val===0 && p.i_count===0 && p.i_val===0 && p.o_count===0 && p.o_val===0;
+    return {
+      entry_date:    importParsed.date, rep: rep.id,
+      quote_count:   allZero && ex ? ex.quote_count   : p.q_count,
+      quote_value:   allZero && ex ? ex.quote_value   : p.q_val,
+      invoice_count: allZero && ex ? ex.invoice_count : p.i_count,
+      invoice_value: allZero && ex ? ex.invoice_value : p.i_val,
+      order_count:   allZero && ex ? ex.order_count   : p.o_count,
+      order_value:   allZero && ex ? ex.order_value   : p.o_val,
+      notes: '',
+    };
+  });
+
+  try{
+    await fetch(SB_URL+'/rest/v1/daily_entries?on_conflict=entry_date,rep',{
+      method:'POST',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify(entries),
+    });
+
+    const d = new Date(importParsed.date+'T00:00:00');
+    const dLabel = d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'long'});
+    const totI = REPS.reduce((s,r)=>s+importParsed.data[r.id].i_val,0);
+    importHistory.unshift({label:dLabel, invoiced:totI});
+
+    const histStep = document.getElementById('import-history-step');
+    const histList = document.getElementById('import-history-list');
+    if(histStep && histList){
+      histStep.style.display = 'block';
+      histList.innerHTML = importHistory.map(h=>`
+        <div class="import-history-row">
+          <span style="font-weight:700">${h.label}</span>
+          <span style="font-size:12px;color:var(--muted)">Invoiced ${fmt(h.invoiced)}</span>
+          <span class="badge-ok">Saved</span>
+        </div>`).join('');
+    }
+
+    await loadAll();
+    buildMonthSelect();
+    showToast('Saved — ready for next day');
+
+    document.getElementById('import-raw').value = '';
+    document.getElementById('import-preview-step').style.display = 'none';
+    document.getElementById('import-warnings').innerHTML = '';
+    document.getElementById('import-preview-content').innerHTML = '';
+
+    // Step date back one working day for next import
+    const prev = new Date(importParsed.date+'T00:00:00');
+    prev.setDate(prev.getDate()-1);
+    if(prev.getDay()===0) prev.setDate(prev.getDate()-2);
+    if(prev.getDay()===6) prev.setDate(prev.getDate()-1);
+    const pad = n=>String(n).padStart(2,'0');
+    document.getElementById('import-date').value = `${prev.getFullYear()}-${pad(prev.getMonth()+1)}-${pad(prev.getDate())}`;
+    importParsed = null;
+    btn.textContent = 'Save to dashboard';
+    btn.disabled = false;
+  }catch(e){
+    showToast('Save failed — check connection');
+    btn.textContent = 'Save to dashboard';
+    btn.disabled = false;
+    console.error(e);
+  }
+}
+
+function importReset(){
+  document.getElementById('import-preview-step').style.display = 'none';
+  document.getElementById('import-raw').value = '';
+  importParsed = null;
+}
+
+/* ── IMPORT ── */
+
+function renderImport(){
+  const el = document.getElementById('import');
+  const today = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate()-1);
+  const defaultDate = `${yesterday.getFullYear()}-${pad(yesterday.getMonth()+1)}-${pad(yesterday.getDate())}`;
+
+  el.innerHTML = `
+    <div class="input-wrap">
+      <div class="sec-head" style="margin-top:0"><h2>WhatsApp importer</h2></div>
+
+      <div class="step-card">
+        <div class="step-label">Step 1 — Select date</div>
+        <div class="input-date-row" style="margin-bottom:0">
+          <label>Date</label>
+          <input type="date" id="imp-date" value="${defaultDate}">
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-label">Step 2 — Paste the WhatsApp message</div>
+        <textarea id="imp-raw" placeholder="Paste the daily message exactly as received. Lines like 'Inv 2 Date', 'Quotes 2 Date' and 'Orders 2 Date' are ignored automatically." style="font-family:'Nunito',sans-serif;width:100%;background:var(--navy3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:500;padding:12px 14px;outline:none;resize:vertical;min-height:200px;line-height:1.6;transition:border-color 0.15s;margin-bottom:0" onfocus="this.style.borderColor='var(--orange)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+        <button class="btn-primary" style="margin-top:10px" onclick="parseImport()">Parse message</button>
+      </div>
+
+      <div id="imp-preview" style="display:none">
+        <div class="step-card">
+          <div class="step-label">Step 3 — Review and confirm</div>
+          <div id="imp-warnings"></div>
+          <div id="imp-table"></div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button class="btn-primary" onclick="saveImport()">Save to dashboard</button>
+            <button class="btn-secondary" onclick="resetImport()">Start over</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="imp-history" style="display:${importHistory.length?'block':'none'}">
+        <div class="sec-head"><h2>Imported this session</h2></div>
+        <div class="table-card" id="imp-history-list"></div>
+      </div>
+    </div>
+  `;
+
+  renderImportHistory();
+}
+
+function parseImport(){
+  const dateVal = document.getElementById('imp-date')?.value;
+  if(!dateVal){ showToast('Please select a date first'); return; }
+  const raw = document.getElementById('imp-raw')?.value.trim();
+  if(!raw){ showToast('Please paste a message first'); return; }
+
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  let section = null;
+  const data = {};
+  REPS.forEach(r=>{ data[r.id]={q_count:0,q_val:0,i_count:0,i_val:0,o_count:0,o_val:0}; });
+
+  const repNames = {};
+  REPS.forEach(r=>{ repNames[r.name.toLowerCase()]=r.id; });
+
+  lines.forEach(line=>{
+    const ll = line.toLowerCase();
+    if(ll.includes('quotes today'))     { section='quotes';   return; }
+    if(ll.includes('invoices today'))   { section='invoices'; return; }
+    if(ll.includes('orders today'))     { section='orders';   return; }
+    if(ll.includes('2 date')||ll.includes('to date')) return;
+    if(!section) return;
+    const match = line.match(/^([A-Za-z]+)\s*[-–]\s*(\d+)\s*=\s*R?([\d\s,.]+)/i);
+    if(!match) return;
+    const repId = repNames[match[1].toLowerCase()];
+    if(!repId) return;
+    const count = parseInt(match[2])||0;
+    const value = parseFloat(match[3].replace(/[^0-9.]/g,''))||0;
+    if(section==='quotes')  { data[repId].q_count=count; data[repId].q_val=value; }
+    if(section==='invoices'){ data[repId].i_count=count; data[repId].i_val=value; }
+    if(section==='orders')  { data[repId].o_count=count; data[repId].o_val=value; }
+  });
+
+  importParsed = { date: dateVal, data };
+
+  // Warnings for all-zero reps
+  const warnings = REPS.filter(r=>{
+    const d=data[r.id];
+    return d.q_count===0&&d.q_val===0&&d.i_count===0&&d.i_val===0&&d.o_count===0&&d.o_val===0;
+  }).map(r=>`<div style="background:rgba(236,105,35,0.1);border:1px solid rgba(236,105,35,0.3);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--orange);margin-bottom:8px">${r.name} has no data — check the message includes their figures.</div>`).join('');
+
+  document.getElementById('imp-warnings').innerHTML = warnings;
+
+  // Preview table
+  const d = new Date(dateVal+'T00:00:00');
+  const dLabel = d.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const rows = REPS.map(rep=>{
+    const r = data[rep.id];
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">
+        <span style="width:24px;height:24px;border-radius:50%;background:${rep.colour};color:${rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${rep.initials}</span>
+        <span style="font-weight:700">${rep.name}</span></span></td>
+      <td class="r" style="${r.q_val>0?'font-weight:700':'color:var(--hint)'}">${r.q_count} · ${fmt(r.q_val)}</td>
+      <td class="r" style="${r.i_val>0?'font-weight:700;color:#4ade80':'color:var(--hint)'}">${r.i_count} · ${fmt(r.i_val)}</td>
+      <td class="r" style="${r.o_val>0?'font-weight:700':'color:var(--hint)'}">${r.o_count} · ${fmt(r.o_val)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('imp-table').innerHTML = `
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">${dLabel}</div>
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th>Rep</th><th class="r">Quotes</th><th class="r">Invoiced</th><th class="r">Orders</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('imp-preview').style.display = 'block';
+  document.getElementById('imp-preview').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function saveImport(){
+  if(!importParsed){ showToast('Nothing to save'); return; }
+  const btn = event.target;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  // Fetch existing to preserve data for all-zero reps
+  let existing = {};
+  try{
+    const rows = await api('/rest/v1/daily_entries?select=*&entry_date=eq.'+importParsed.date);
+    if(rows) rows.forEach(r=>{ existing[r.rep]=r; });
+  }catch(e){}
+
+  const entries = REPS.map(rep=>{
+    const ex = existing[rep.id];
+    const p  = importParsed.data[rep.id];
+    const allZero = p.q_count===0&&p.q_val===0&&p.i_count===0&&p.i_val===0&&p.o_count===0&&p.o_val===0;
+    return {
+      entry_date:    importParsed.date,
+      rep:           rep.id,
+      quote_count:   allZero&&ex ? ex.quote_count   : p.q_count,
+      quote_value:   allZero&&ex ? ex.quote_value   : p.q_val,
+      invoice_count: allZero&&ex ? ex.invoice_count : p.i_count,
+      invoice_value: allZero&&ex ? ex.invoice_value : p.i_val,
+      order_count:   allZero&&ex ? ex.order_count   : p.o_count,
+      order_value:   allZero&&ex ? ex.order_value   : p.o_val,
+      notes: '',
+    };
+  });
+
+  try{
+    await fetch(SB_URL+'/rest/v1/daily_entries?on_conflict=entry_date,rep',{
+      method:'POST',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(entries),
+    });
+
+    const d = new Date(importParsed.date+'T00:00:00');
+    const dLabel = d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'long'});
+    const totI = REPS.reduce((s,r)=>s+importParsed.data[r.id].i_val,0);
+    importHistory.unshift({label:dLabel, invoiced:totI});
+    renderImportHistory();
+
+    // Reload data and update month selector
+    await loadAll();
+    const[y,m]=importParsed.date.split('-').map(Number);
+    buildMonthSelect();
+    document.getElementById('month-sel').value=`${y}-${String(m).padStart(2,'0')}`;
+
+    showToast('Saved — ready for next day');
+    document.getElementById('imp-raw').value = '';
+    document.getElementById('imp-preview').style.display = 'none';
+
+    // Step date back one working day
+    const prev = new Date(importParsed.date+'T00:00:00');
+    prev.setDate(prev.getDate()-1);
+    if(prev.getDay()===0) prev.setDate(prev.getDate()-1);
+    if(prev.getDay()===6) prev.setDate(prev.getDate()-1);
+    const pad = n=>String(n).padStart(2,'0');
+    document.getElementById('imp-date').value = `${prev.getFullYear()}-${pad(prev.getMonth()+1)}-${pad(prev.getDate())}`;
+    importParsed = null;
+
+    btn.textContent = 'Save to dashboard'; btn.disabled = false;
+  }catch(e){
+    showToast('Save failed — try again');
+    btn.textContent = 'Save to dashboard'; btn.disabled = false;
+    console.error(e);
+  }
+}
+
+function resetImport(){
+  document.getElementById('imp-raw').value = '';
+  document.getElementById('imp-preview').style.display = 'none';
+  importParsed = null;
+}
+
+function renderImportHistory(){
+  const el = document.getElementById('imp-history');
+  const list = document.getElementById('imp-history-list');
+  if(!el||!list) return;
+  el.style.display = importHistory.length ? 'block' : 'none';
+  list.innerHTML = `<table>
+    <thead><tr><th>Date</th><th class="r">Invoiced</th><th class="r">Status</th></tr></thead>
+    <tbody>${importHistory.map(h=>`<tr>
+      <td style="font-weight:700">${h.label}</td>
+      <td class="r" style="color:#4ade80;font-weight:700">${fmt(h.invoiced)}</td>
+      <td class="r"><span style="background:rgba(74,222,128,0.12);color:#4ade80;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">Saved</span></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
 }
 
 /* ── ADMIN ── */
