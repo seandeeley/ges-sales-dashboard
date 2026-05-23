@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GES — Import</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#252957;--navy2:#1e2347;--navy3:#1a1f3e;
+  --orange:#ec6923;--sky:#4cb3e6;--green:#4ade80;
+  --text:#f0f1f8;--muted:#9fa3c0;--hint:#6b6f8a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --card:#1e2347;
+}
+body{font-family:'Nunito',sans-serif;background:var(--navy3);color:var(--text);min-height:100vh;padding:0}
+
+header{background:var(--navy);border-bottom:1px solid var(--border2);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:36px;height:36px;border-radius:8px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff}
+.logo-name{font-weight:700;font-size:15px;color:#fff}
+.logo-sub{font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+.back-btn{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.back-btn:hover{color:var(--text);background:rgba(255,255,255,0.06)}
+
+main{max-width:720px;margin:0 auto;padding:28px 20px 60px}
+
+.step{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+.step-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:14px}
+
+.date-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.date-row label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+input[type=date]{font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;background:var(--navy3);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 14px;outline:none;cursor:pointer;transition:border-color 0.15s}
+input[type=date]:focus{border-color:var(--orange)}
+
+textarea{font-family:'Nunito',sans-serif;width:100%;background:var(--navy3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:500;padding:12px 14px;outline:none;resize:vertical;min-height:220px;line-height:1.6;transition:border-color 0.15s}
+textarea:focus{border-color:var(--orange)}
+textarea::placeholder{color:var(--hint)}
+
+.btn-parse{width:100%;margin-top:12px;padding:13px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.15s;letter-spacing:0.3px}
+.btn-parse:hover{opacity:0.88}
+
+/* PREVIEW */
+.preview-table{width:100%;border-collapse:collapse;font-size:13px}
+.preview-table th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--hint);border-bottom:1px solid var(--border2)}
+.preview-table th.r{text-align:right}
+.preview-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:500}
+.preview-table td.r{text-align:right;font-family:'Nunito',monospace}
+.preview-table tr:last-child td{border-bottom:none}
+.rep-dot{display:inline-flex;align-items:center;gap:8px}
+.dot{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.val-zero{color:var(--hint)}
+.val-pos{color:var(--text);font-weight:700}
+
+.warning{background:rgba(236,105,35,0.1);border:1px solid rgba(236,105,35,0.3);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--orange);margin-bottom:12px}
+.success-msg{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--green);margin-bottom:12px}
+
+.action-row{display:flex;gap:10px;margin-top:16px}
+.btn-confirm{flex:1;padding:13px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.15s}
+.btn-confirm:hover{opacity:0.88}
+.btn-cancel{padding:13px 20px;background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s}
+.btn-cancel:hover{background:rgba(255,255,255,0.05)}
+
+.history{margin-top:8px}
+.history-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.history-row:last-child{border-bottom:none}
+.history-date{font-weight:700;color:var(--text)}
+.history-detail{font-size:12px;color:var(--muted)}
+.badge-ok{background:rgba(74,222,128,0.12);color:var(--green);font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
+
+.toast{display:none;position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;padding:10px 22px;border-radius:22px;font-size:13px;font-weight:700;z-index:200;white-space:nowrap}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">GES</div>
+    <div>
+      <div class="logo-name">Garage Equipment Service</div>
+      <div class="logo-sub">Data importer</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1: DATE -->
+  <div class="step">
+    <div class="step-title">Step 1 — Select the date for this entry</div>
+    <div class="date-row">
+      <label>Date</label>
+      <input type="date" id="entry-date">
+    </div>
+  </div>
+
+  <!-- STEP 2: PASTE -->
+  <div class="step">
+    <div class="step-title">Step 2 — Paste the WhatsApp message</div>
+    <textarea id="raw-input" placeholder="Paste the daily message here exactly as it appears in WhatsApp. The importer will ignore lines it doesn't recognise.
+
+Example:
+Quotes today:
+Daton - 1 = R8880
+Mark - 0 = R0
+..."></textarea>
+    <button class="btn-parse" onclick="parseInput()">Parse message</button>
+  </div>
+
+  <!-- STEP 3: PREVIEW (hidden until parsed) -->
+  <div class="step" id="preview-step" style="display:none">
+    <div class="step-title">Step 3 — Review and confirm</div>
+    <div id="preview-warnings"></div>
+    <div id="preview-content"></div>
+    <div class="action-row">
+      <button class="btn-confirm" id="confirm-btn" onclick="saveData()">Save to dashboard</button>
+      <button class="btn-cancel" onclick="resetPreview()">Start over</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="step" id="history-step" style="display:none">
+    <div class="step-title">Imported this session</div>
+    <div class="history" id="history-list"></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://szhelwfqaglxslxmtgnt.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6aGVsd2ZxYWdseHNseG10Z250Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NTg5MTAsImV4cCI6MjA5NTAzNDkxMH0.kiIUvsYWEnd9mK9axVlZvjJ8blyfKrs4Z1DuyJGpSys';
+
+let REPS = [];
+let parsed = null;
+let sessionHistory = [];
+
+async function api(path, method='GET', body=null){
+  const opts = {method, headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'}};
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(SB_URL+path, opts);
+  if(!r.ok) throw new Error(await r.text());
+  const ct = r.headers.get('content-type')||'';
+  return ct.includes('json') ? r.json() : null;
+}
+
+async function loadReps(){
+  try{
+    REPS = await api('/rest/v1/reps?select=*&active=eq.true&order=sort_order.asc');
+  }catch(e){
+    REPS = [
+      {id:'daton',   name:'Daton',   initials:'DA', colour:'#293b90', text_colour:'#c5cbf0'},
+      {id:'mark',    name:'Mark',    initials:'MA', colour:'#ec6923', text_colour:'#ffffff'},
+      {id:'reed',    name:'Reed',    initials:'RE', colour:'#4cb3e6', text_colour:'#0a2a3a'},
+      {id:'luandre', name:'Luandre', initials:'LU', colour:'#bbbbba', text_colour:'#1a1f3e'},
+    ];
+  }
+}
+
+/* ── PARSER ── */
+function parseVal(str){
+  if(!str) return 0;
+  return parseFloat(str.replace(/[^0-9.]/g,'')) || 0;
+}
+
+function parseInput(){
+  const dateVal = document.getElementById('entry-date').value;
+  if(!dateVal){ showToast('Please select a date first'); return; }
+
+  const raw = document.getElementById('raw-input').value.trim();
+  if(!raw){ showToast('Please paste a message first'); return; }
+
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+
+  // Detect current section
+  let section = null;
+  const data = {};
+  REPS.forEach(r=>{ data[r.id] = {q_count:0,q_val:0,i_count:0,i_val:0,o_count:0,o_val:0}; });
+
+  const repNames = {};
+  REPS.forEach(r=>{ repNames[r.name.toLowerCase()] = r.id; });
+
+  lines.forEach(line=>{
+    const ll = line.toLowerCase();
+
+    // Section headers
+    if(ll.includes('quotes today'))     { section='quotes';   return; }
+    if(ll.includes('invoices today'))   { section='invoices'; return; }
+    if(ll.includes('orders today'))     { section='orders';   return; }
+    // Skip 2-date lines
+    if(ll.includes('inv 2 date') || ll.includes('invoiced to date') ||
+       ll.includes('quotes 2 date') || ll.includes('orders 2 date') ||
+       ll.includes('2 date') || ll.includes('to date')) { return; }
+    if(!section) return;
+
+    // Match: "RepName - count = Rvalue"
+    const match = line.match(/^([A-Za-z]+)\s*[-–]\s*(\d+)\s*=\s*R?([\d\s,.]+)/i);
+    if(!match) return;
+
+    const repName = match[1].toLowerCase();
+    const count   = parseInt(match[2]) || 0;
+    const value   = parseVal(match[3]);
+    const repId   = repNames[repName];
+    if(!repId) return;
+
+    if(section==='quotes')  { data[repId].q_count=count; data[repId].q_val=value; }
+    if(section==='invoices'){ data[repId].i_count=count; data[repId].i_val=value; }
+    if(section==='orders')  { data[repId].o_count=count; data[repId].o_val=value; }
+  });
+
+  parsed = { date: dateVal, data };
+  showPreview(dateVal, data);
+}
+
+function fmt(v){ return 'R'+(Math.round(v)||0).toLocaleString('en-ZA'); }
+
+function showPreview(dateVal, data){
+  const d = new Date(dateVal+'T00:00:00');
+  const dLabel = d.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Check if any rep has all zeros
+  const warnings = [];
+  REPS.forEach(rep=>{
+    const r = data[rep.id];
+    if(r.q_count===0 && r.q_val===0 && r.i_count===0 && r.i_val===0 && r.o_count===0 && r.o_val===0){
+      warnings.push(`${rep.name} has no data — check the message includes their figures.`);
+    }
+  });
+
+  const warnEl = document.getElementById('preview-warnings');
+  warnEl.innerHTML = warnings.map(w=>`<div class="warning">${w}</div>`).join('');
+
+  let rows = '';
+  REPS.forEach(rep=>{
+    const r = data[rep.id];
+    const allZero = r.q_val===0 && r.i_val===0 && r.o_val===0;
+    rows += `<tr>
+      <td><span class="rep-dot">
+        <span class="dot" style="background:${rep.colour};color:${rep.text_colour}">${rep.initials}</span>
+        ${rep.name}
+      </span></td>
+      <td class="r ${r.q_count===0?'val-zero':'val-pos'}">${r.q_count} · ${fmt(r.q_val)}</td>
+      <td class="r ${r.i_count===0?'val-zero':'val-pos'}">${r.i_count} · ${fmt(r.i_val)}</td>
+      <td class="r ${r.o_count===0?'val-zero':'val-pos'}">${r.o_count} · ${fmt(r.o_val)}</td>
+    </tr>`;
+  });
+
+  document.getElementById('preview-content').innerHTML = `
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${dLabel}</div>
+    <table class="preview-table">
+      <thead><tr>
+        <th>Rep</th>
+        <th class="r">Quotes</th>
+        <th class="r">Invoiced</th>
+        <th class="r">Orders</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  document.getElementById('preview-step').style.display = 'block';
+  document.getElementById('preview-step').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function saveData(){
+  if(!parsed){ showToast('Nothing to save'); return; }
+
+  const btn = document.getElementById('confirm-btn');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  // Fetch existing data for this date so we only overwrite parsed reps
+  // and preserve any reps that had no data in the message
+  let existing = {};
+  try{
+    const rows = await api('/rest/v1/daily_entries?select=*&entry_date=eq.'+parsed.date);
+    if(rows) rows.forEach(r=>{ existing[r.rep] = r; });
+  }catch(e){ /* proceed without existing data */ }
+
+  const entries = REPS.map(rep=>{
+    const ex = existing[rep.id];
+    const p  = parsed.data[rep.id];
+    // If this rep had all zeros in the parsed message AND has existing data, keep existing
+    const allZero = p.q_count===0 && p.q_val===0 && p.i_count===0 && p.i_val===0 && p.o_count===0 && p.o_val===0;
+    return {
+      entry_date:    parsed.date,
+      rep:           rep.id,
+      quote_count:   allZero && ex ? ex.quote_count   : p.q_count,
+      quote_value:   allZero && ex ? ex.quote_value   : p.q_val,
+      invoice_count: allZero && ex ? ex.invoice_count : p.i_count,
+      invoice_value: allZero && ex ? ex.invoice_value : p.i_val,
+      order_count:   allZero && ex ? ex.order_count   : p.o_count,
+      order_value:   allZero && ex ? ex.order_value   : p.o_val,
+      notes:         allZero && ex ? (ex.notes||'')   : '',
+    };
+  });
+
+  try{
+    await fetch(SB_URL+'/rest/v1/daily_entries?on_conflict=entry_date,rep',{
+      method:'POST',
+      headers:{
+        'apikey':SB_KEY,
+        'Authorization':'Bearer '+SB_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(entries),
+    });
+
+    // Add to session history
+    const d = new Date(parsed.date+'T00:00:00');
+    const dLabel = d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'long'});
+    const totI = REPS.reduce((s,r)=>s+parsed.data[r.id].i_val,0);
+    sessionHistory.unshift({label:dLabel, invoiced:totI});
+    updateHistory();
+
+    showToast('Saved — ready for next day');
+
+    // Reset for next entry
+    document.getElementById('raw-input').value = '';
+    document.getElementById('preview-step').style.display = 'none';
+    document.getElementById('preview-warnings').innerHTML = '';
+    document.getElementById('preview-content').innerHTML = '';
+
+    // Advance date by 1 working day suggestion
+    const next = nextWorkingDay(parsed.date);
+    document.getElementById('entry-date').value = next;
+    parsed = null;
+
+    btn.textContent = 'Save to dashboard';
+    btn.disabled = false;
+
+  }catch(e){
+    showToast('Save failed — check connection');
+    btn.textContent = 'Save to dashboard';
+    btn.disabled = false;
+    console.error(e);
+  }
+}
+
+function nextWorkingDay(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()-1); // step back to previous day for historical import
+  const dow = d.getDay();
+  if(dow===0) d.setDate(d.getDate()-1); // skip Sunday back to Saturday... keep going
+  if(dow===1) d.setDate(d.getDate()-3); // Monday → go back to Friday
+  return d.toISOString().slice(0,10);
+}
+
+function resetPreview(){
+  document.getElementById('preview-step').style.display = 'none';
+  document.getElementById('raw-input').value = '';
+  parsed = null;
+}
+
+function updateHistory(){
+  const el = document.getElementById('history-step');
+  const list = document.getElementById('history-list');
+  el.style.display = 'block';
+  list.innerHTML = sessionHistory.map(h=>`
+    <div class="history-row">
+      <span class="history-date">${h.label}</span>
+      <span class="history-detail">Invoiced ${fmt(h.invoiced)}</span>
+      <span class="badge-ok">Saved</span>
+    </div>`).join('');
+}
+
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2400);
+}
+
+// Init
+(async ()=>{
+  await loadReps();
+  // Default to yesterday for historical import
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate()-1);
+  document.getElementById('entry-date').value = yesterday.toISOString().slice(0,10);
+})();
+</script>
+</body>
+</html>
