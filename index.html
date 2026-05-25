@@ -110,6 +110,9 @@ select.month-sel{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
 .rep-card-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 .rep-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
 .rep-card-name{font-size:15px;font-weight:700;color:var(--white)}
+@keyframes borderPulse{0%,100%{border-color:#4ade80;box-shadow:0 0 6px rgba(74,222,128,0.4)}50%{border-color:#4ade80;box-shadow:0 0 16px rgba(74,222,128,0.8)}}
+.card-pulse{animation:borderPulse 1.8s ease-in-out infinite}
+.card-red{border-color:#ef4444 !important}
 .rep-card-rank{margin-left:auto;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;background:rgba(255,255,255,0.07);color:var(--muted)}
 .rep-card-rank.gold{background:rgba(236,105,35,0.2);color:var(--orange)}
 .rep-card-body{padding:14px 18px}
@@ -366,7 +369,6 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
 <div id="input" class="page"></div>
 <div id="admin" class="page"></div>
 <div id="import" class="page"></div>
-<div id="import" class="page"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -421,7 +423,7 @@ async function loadAll(){
     api('/rest/v1/daily_entries?select=*&order=entry_date.asc'),
   ]);
 
-  REPS=repsData.filter(r=>r.active);
+  REPS=repsData.filter(r=>r.active).map(r=>({id:r.id,name:r.name,initials:r.initials,colour:r.colour,text_colour:r.text_colour,active:r.active,sort_order:r.sort_order,monthly_target:r.monthly_target||100000}));
   activeReps=new Set(REPS.map(r=>r.id));
 
   const pinRow=configData.find(c=>c.key==='pin');
@@ -628,7 +630,7 @@ function renderYTD(){
     const pct=maxIv>0?(a.iv/maxIv*100).toFixed(1):0;
     const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
     cards.innerHTML+=`
-      <div class="rep-card" style="border-color:${a.iv>=100000?'#4ade80':'#ef4444'};border-width:3px">
+      <div class="rep-card ${a.iv>=(a.rep.monthly_target||100000)?'card-pulse':'card-red'}" style="border-width:3px">
         <div class="rep-card-header">
           <div class="rep-avatar" style="background:${a.rep.colour};color:${a.rep.text_colour}">${a.rep.initials}</div>
           <div class="rep-card-name">${a.rep.name}</div>
@@ -701,7 +703,7 @@ function renderScoreboard(){
     const pct=maxIv>0?(a.iv/maxIv*100).toFixed(1):0;
     const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
     cards.innerHTML+=`
-      <div class="rep-card" style="border-color:${a.iv>=100000?'#4ade80':'#ef4444'};border-width:3px">
+      <div class="rep-card ${a.iv>=((a.rep.monthly_target||100000)*Math.max(monthsWithData.length,1))?'card-pulse':'card-red'}" style="border-width:3px">
         <div class="rep-card-header">
           <div class="rep-avatar" style="background:${a.rep.colour};color:${a.rep.text_colour}">${a.rep.initials}</div>
           <div class="rep-card-name">${a.rep.name}</div>
@@ -1096,45 +1098,7 @@ function renderInput(){
 
   const container=document.getElementById('rep-forms');
   buildQuickGrid(container);
-  if(false){
-    REPS.forEach((rep,ri)=>{
-    const card=document.createElement('div');
-    card.className='rep-form-card';
-    card.id='rfc_'+rep.id;
-    const hd=document.createElement('div');
-    hd.className='rep-form-hd';
-    hd.innerHTML=`
-      <div class="rep-avatar" style="background:${rep.colour};color:${rep.text_colour};width:32px;height:32px;font-size:12px">${rep.initials}</div>
-      <div class="rep-form-name">${rep.name}</div>
-      <span class="rep-form-status" id="rfs_${rep.id}">pending</span>
-      <span class="chevron">&#8964;</span>`;
-    hd.onclick=()=>card.classList.toggle('open');
-    const body=document.createElement('div');
-    body.className='rep-form-body';
-    body.innerHTML=`
-      <div class="form-section-title">Quotes today</div>
-      <div class="form-row">
-        <div class="form-field"><label>Count</label><input type="number" min="0" step="1" placeholder="0" id="${rep.id}_q_count" oninput="onField('${rep.id}')"></div>
-        <div class="form-field"><label>Value</label><div class="prefix-wrap"><span>R</span><input type="number" min="0" step="0.01" placeholder="0.00" id="${rep.id}_q_val" oninput="onField('${rep.id}')"></div></div>
-      </div>
-      <div class="form-section-title">Invoices today</div>
-      <div class="form-row">
-        <div class="form-field"><label>Count</label><input type="number" min="0" step="1" placeholder="0" id="${rep.id}_i_count" oninput="onField('${rep.id}')"></div>
-        <div class="form-field"><label>Value</label><div class="prefix-wrap"><span>R</span><input type="number" min="0" step="0.01" placeholder="0.00" id="${rep.id}_i_val" oninput="onField('${rep.id}')"></div></div>
-      </div>
-      <div class="form-section-title">Orders today</div>
-      <div class="form-row">
-        <div class="form-field"><label>Count</label><input type="number" min="0" step="1" placeholder="0" id="${rep.id}_o_count" oninput="onField('${rep.id}')"></div>
-        <div class="form-field"><label>Value</label><div class="prefix-wrap"><span>R</span><input type="number" min="0" step="0.01" placeholder="0.00" id="${rep.id}_o_val" oninput="onField('${rep.id}')"></div></div>
-      </div>
-      <div class="form-section-title">Notes (optional)</div>
-      <textarea class="notes-field" id="${rep.id}_notes" placeholder="Any context for today…"></textarea>
-      <div class="rep-day-total"><span>Today's total</span><span id="rdt_${rep.id}">R0</span></div>`;
-    card.appendChild(hd);card.appendChild(body);
-    container.appendChild(card);
-    if(ri===0)card.classList.add('open');
-    });
-  }
+
   updateSubTotals();
   prefillDate(document.getElementById('entry-date').value);
 }
@@ -1749,7 +1713,7 @@ async function saveNewRep(){
   const id=name.toLowerCase().replace(/\s+/g,'_');
   const maxOrder=Math.max(0,...REPS.map(r=>r.sort_order||0));
   try{
-    await api('/rest/v1/reps','POST',[{id,name,initials,colour,text_colour,active:true,sort_order:maxOrder+1}]);
+    await api('/rest/v1/reps','POST',[{id,name,initials,colour,text_colour,active:true,sort_order:maxOrder+1,monthly_target:100000}]);
     showToast(`${name} added`);
     await loadAll();
     renderAdmin();
@@ -1762,10 +1726,18 @@ function showEditRep(repId, name, initials, colour){
   const panel = document.getElementById('edit_'+repId);
   if(!panel) return;
   panel.style.display = 'block';
+  // Get current target for this rep
+  const currentRep = REPS.find(r=>r.id===repId);
+  const currentTarget = currentRep ? (currentRep.monthly_target||100000) : 100000;
+
   panel.innerHTML = `
     <div class="admin-form-row">
       <div class="admin-field"><label>Name</label><input type="text" id="edit-name-${repId}" value="${name}"></div>
       <div class="admin-field"><label>Initials</label><input type="text" id="edit-init-${repId}" value="${initials}" maxlength="3"></div>
+    </div>
+    <div class="admin-field" style="margin-bottom:12px">
+      <label>Monthly target (R)</label>
+      <div class="prefix-wrap"><span>R</span><input type="number" min="0" step="1000" id="edit-target-${repId}" value="${currentTarget}"></div>
     </div>
     <div class="admin-field" style="margin-bottom:12px">
       <label>Colour</label>
@@ -1794,8 +1766,9 @@ async function saveEditRep(repId){
   if(!name||!initials){showToast('Name and initials required');return;}
   const colour = selSwatch ? selSwatch.dataset.hex : PALETTE[0].hex;
   const text_colour = fgFor(colour);
+  const monthly_target = parseFloat(document.getElementById('edit-target-'+repId)?.value)||100000;
   try{
-    await api('/rest/v1/reps?id=eq.'+repId,'PATCH',{name,initials,colour,text_colour});
+    await api('/rest/v1/reps?id=eq.'+repId,'PATCH',{name,initials,colour,text_colour,monthly_target});
     showToast(name+' updated');
     await loadAll();
     renderAdmin();
