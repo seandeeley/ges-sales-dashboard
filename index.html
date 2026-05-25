@@ -628,8 +628,9 @@ function renderYTD(){
   agg.forEach((a,i)=>{
     const pct=maxIv>0?(a.iv/maxIv*100).toFixed(1):0;
     const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
+    const ytdTarget=(a.rep.monthly_target||100000)*Math.max(monthsWithData.length,1);
     cards.innerHTML+=`
-      <div class="rep-card ${a.iv>=(a.rep.monthly_target||100000)?'card-pulse':'card-red'}" style="border-width:3px">
+      <div class="rep-card ${a.iv>=ytdTarget?'card-pulse':'card-red'}" style="border-width:3px">
         <div class="rep-card-header">
           <div class="rep-avatar" style="background:${a.rep.colour};color:${a.rep.text_colour}">${a.rep.initials}</div>
           <div class="rep-card-name">${a.rep.name}</div>
