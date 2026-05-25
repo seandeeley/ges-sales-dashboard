@@ -581,7 +581,6 @@ function renderAll(){
   else if(id==='input')renderInput();
   else if(id==='admin')renderAdmin();
   else if(id==='import')renderImport();
-  else if(id==='import')renderImport();
 }
 
 /* ── YTD ── */
@@ -703,7 +702,7 @@ function renderScoreboard(){
     const pct=maxIv>0?(a.iv/maxIv*100).toFixed(1):0;
     const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
     cards.innerHTML+=`
-      <div class="rep-card ${a.iv>=((a.rep.monthly_target||100000)*Math.max(monthsWithData.length,1))?'card-pulse':'card-red'}" style="border-width:3px">
+      <div class="rep-card ${a.iv>=(a.rep.monthly_target||100000)?'card-pulse':'card-red'}" style="border-width:3px">
         <div class="rep-card-header">
           <div class="rep-avatar" style="background:${a.rep.colour};color:${a.rep.text_colour}">${a.rep.initials}</div>
           <div class="rep-card-name">${a.rep.name}</div>
