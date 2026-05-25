@@ -74,11 +74,32 @@ header{background:var(--navy);border-bottom:1px solid var(--border2);padding:0 2
 .bnav-icon{font-size:16px;line-height:1}
 select.month-sel{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:6px 12px;cursor:pointer;outline:none}
 .last-updated{font-size:11px;color:var(--hint);font-weight:600;white-space:nowrap}
+.refresh-btn{font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;padding:7px 14px;border-radius:20px;border:none;cursor:pointer;background:var(--orange);color:#fff;transition:all 0.15s;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.refresh-btn:hover{opacity:0.85}
+.refresh-btn.spinning svg{animation:spin 0.8s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* PAGES */
 .page{display:none;padding:24px;max-width:1100px;margin:0 auto}
 .page.active{display:block}
 
+/* ENTRY GATE */
+.entry-gate{position:fixed;inset:0;background:var(--navy3);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:24px;overflow:hidden}
+.entry-gate::before{content:'';position:absolute;top:-120px;left:-120px;width:400px;height:400px;border-radius:50%;background:rgba(236,105,35,0.08);pointer-events:none}
+.entry-gate::after{content:'';position:absolute;bottom:-100px;right:-80px;width:350px;height:350px;border-radius:50%;background:rgba(41,59,144,0.12);pointer-events:none}
+.entry-gate-inner{display:flex;flex-direction:column;align-items:center;gap:0;z-index:1;width:100%;max-width:360px}
+.entry-gate .ges-logo-wrap{width:72px;height:72px;border-radius:18px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;color:#fff;margin-bottom:24px;box-shadow:0 8px 32px rgba(236,105,35,0.35)}
+.entry-gate h1{font-size:22px;font-weight:800;color:var(--white);margin-bottom:6px;text-align:center;letter-spacing:0.2px}
+.entry-gate .gate-sub{font-size:12px;font-weight:600;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:32px}
+.entry-gate .gate-divider{width:40px;height:2px;background:var(--orange);border-radius:1px;margin-bottom:32px}
+.entry-gate .gate-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;align-self:flex-start}
+.entry-gate .pin-input{width:100%;font-size:28px;letter-spacing:0.4em;text-align:center;background:rgba(255,255,255,0.05);border:1.5px solid var(--border2);border-radius:12px;color:var(--white);padding:14px 20px;outline:none;margin-bottom:6px;transition:border-color 0.15s}
+.entry-gate .pin-input:focus{border-color:var(--orange)}
+.entry-gate .pin-input.error{border-color:#ef4444}
+.entry-gate .pin-error{font-size:12px;font-weight:600;color:#ef4444;min-height:18px;text-align:center;margin-bottom:16px}
+.entry-gate .pin-btn{width:100%;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px;transition:opacity 0.15s}
+.entry-gate .pin-btn:hover{opacity:0.88}
+.entry-gate .gate-footer{font-size:11px;color:var(--hint);margin-top:24px;text-align:center;z-index:1}
 /* PIN SCREEN */
 .pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:20px}
 .pin-screen h2{font-size:18px;font-weight:700;color:var(--text)}
@@ -306,6 +327,22 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
 </head>
 <body>
 
+<div class="entry-gate" id="entry-gate">
+  <div class="entry-gate-inner">
+    <div class="ges-logo-wrap">GES</div>
+    <h1>Garage Equipment Service</h1>
+    <div class="gate-sub">Traditional Sales Dashboard</div>
+    <div class="gate-divider"></div>
+    <div class="gate-label">Enter PIN to continue</div>
+    <input class="pin-input" type="password" id="entry-pin-input" maxlength="10" placeholder="••••"
+      onkeydown="if(event.key==='Enter')checkEntryPin()"
+      oninput="this.classList.remove('error');document.getElementById('entry-pin-err').textContent=''">
+    <div class="pin-error" id="entry-pin-err"></div>
+    <button class="pin-btn" onclick="checkEntryPin()">Enter dashboard</button>
+    <div class="gate-footer">Garage Equipment Service &copy; 2026</div>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-mark">GES</div>
@@ -326,6 +363,9 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;
   </div>
   <div class="header-right">
     <div class="last-updated" id="last-updated"></div>
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshData()" title="Refresh data">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+    </button>
     <div class="month-wrap">
       <label>Month</label>
       <select class="month-sel" id="month-sel" onchange="renderAll()"></select>
@@ -400,10 +440,13 @@ function fgFor(hex){
 let REPS=[];
 let DATA={};
 let PIN='1234';
+let ENTRY_PIN='0000';
+let appUnlocked=false;
 let sessionUnlocked=false;
 let activeReps=new Set();
 let chartInstances={};
 let lastEntry=null;
+let lastEntryTimestamp=null;
 
 /* ── API ── */
 async function api(path,method='GET',body=null){
@@ -428,6 +471,8 @@ async function loadAll(){
 
   const pinRow=configData.find(c=>c.key==='pin');
   if(pinRow)PIN=pinRow.value;
+  const entryPinRow=configData.find(c=>c.key==='entry_pin');
+  if(entryPinRow)ENTRY_PIN=entryPinRow.value;
 
   DATA={};
   entries.forEach(row=>{
@@ -441,10 +486,29 @@ async function loadAll(){
       o_count:row.order_count,o_val:row.order_value,
       notes:row.notes||'',
     };
-    if(!lastEntry||row.entry_date>lastEntry)lastEntry=row.entry_date;
+    if(!lastEntry||row.entry_date>lastEntry){
+      lastEntry=row.entry_date;
+      lastEntryTimestamp=row.created_at||null;
+    }
   });
 
   updateLastUpdated();
+}
+
+async function refreshData(){
+  const btn = document.getElementById('refresh-btn');
+  if(btn) btn.classList.add('spinning');
+  try{
+    await loadAll();
+    buildMonthSelect();
+    renderAll();
+    showToast('Data refreshed');
+  }catch(e){
+    showToast('Refresh failed');
+    console.error(e);
+  }finally{
+    if(btn) btn.classList.remove('spinning');
+  }
 }
 
 function updateLastUpdated(){
@@ -452,7 +516,13 @@ function updateLastUpdated(){
   if(!el)return;
   if(lastEntry){
     const d=new Date(lastEntry+'T00:00:00');
-    el.textContent='Last entry: '+d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+    const dateStr=d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+    let timeStr='';
+    if(lastEntryTimestamp){
+      const t=new Date(lastEntryTimestamp);
+      timeStr=' at '+t.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false});
+    }
+    el.textContent='Last entry: '+dateStr+timeStr;
   }else{
     el.textContent='No entries yet';
   }
@@ -1656,13 +1726,20 @@ function renderAdmin(){
           </div>
         </div>
         <div class="admin-section">
-          <div class="admin-section-hd">Change PIN</div>
+          <div class="admin-section-hd">Change PINs</div>
           <div class="admin-section-body">
+            <div class="strip-label" style="margin-bottom:8px">Entry PIN — required to open the dashboard</div>
             <div class="admin-form-row">
-              <div class="admin-field"><label>New PIN</label><input type="password" id="new-pin" placeholder="Enter new PIN"></div>
-              <div class="admin-field"><label>Confirm PIN</label><input type="password" id="confirm-pin" placeholder="Confirm new PIN"></div>
+              <div class="admin-field"><label>New entry PIN</label><input type="password" id="new-entry-pin" placeholder="Enter new PIN"></div>
+              <div class="admin-field"><label>Confirm</label><input type="password" id="confirm-entry-pin" placeholder="Confirm new PIN"></div>
             </div>
-            <button class="btn-small" onclick="savePin()">Save PIN</button>
+            <button class="btn-small" onclick="saveEntryPin()" style="margin-bottom:16px">Save entry PIN</button>
+            <div class="strip-label" style="margin-bottom:8px;margin-top:8px">Admin PIN — required for Input, Admin and Import</div>
+            <div class="admin-form-row">
+              <div class="admin-field"><label>New admin PIN</label><input type="password" id="new-pin" placeholder="Enter new PIN"></div>
+              <div class="admin-field"><label>Confirm</label><input type="password" id="confirm-pin" placeholder="Confirm new PIN"></div>
+            </div>
+            <button class="btn-small" onclick="savePin()">Save admin PIN</button>
           </div>
         </div>
         <div class="admin-section">
@@ -1784,6 +1861,21 @@ async function toggleRepActive(repId,currently){
   }catch(e){showToast('Update failed');console.error(e);}
 }
 
+async function saveEntryPin(){
+  const np=document.getElementById('new-entry-pin')?.value;
+  const cp=document.getElementById('confirm-entry-pin')?.value;
+  if(!np){showToast('Enter a new entry PIN');return;}
+  if(np!==cp){showToast('PINs do not match');return;}
+  if(np.length<4){showToast('PIN must be at least 4 characters');return;}
+  try{
+    await api('/rest/v1/config?key=eq.entry_pin','PATCH',{value:np});
+    ENTRY_PIN=np;
+    document.getElementById('new-entry-pin').value='';
+    document.getElementById('confirm-entry-pin').value='';
+    showToast('Entry PIN updated');
+  }catch(e){showToast('Failed to update entry PIN');console.error(e);}
+}
+
 async function savePin(){
   const np=document.getElementById('new-pin')?.value;
   const cp=document.getElementById('confirm-pin')?.value;
@@ -1833,7 +1925,36 @@ function showToast(msg){
 }
 
 /* ── INIT ── */
+function checkEntryPin(){
+  const val=document.getElementById('entry-pin-input')?.value;
+  if(val===ENTRY_PIN){
+    appUnlocked=true;
+    document.getElementById('entry-gate').style.display='none';
+    launchApp();
+  }else{
+    const inp=document.getElementById('entry-pin-input');
+    if(inp){inp.classList.add('error');inp.value='';}
+    document.getElementById('entry-pin-err').textContent='Incorrect PIN — try again';
+  }
+}
+
 async function init(){
+  // Load config first to get entry PIN before showing gate
+  try{
+    const configData=await api('/rest/v1/config?select=*');
+    const pinRow=configData.find(c=>c.key==='pin');
+    if(pinRow)PIN=pinRow.value;
+    const entryPinRow=configData.find(c=>c.key==='entry_pin');
+    if(entryPinRow)ENTRY_PIN=entryPinRow.value;
+  }catch(e){console.error('Config load error',e);}
+
+  // Show entry gate
+  const gate=document.getElementById('entry-gate');
+  if(gate)gate.style.display='flex';
+  setTimeout(()=>document.getElementById('entry-pin-input')?.focus(),100);
+}
+
+async function launchApp(){
   document.getElementById('scoreboard').innerHTML='<div class="loading">Loading…</div>';
   try{
     await loadAll();
