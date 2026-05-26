@@ -710,6 +710,11 @@ function renderYTD(){
           <div class="rep-metric"><span class="rep-metric-label">Invoiced</span><span class="rep-metric-val inv">${fmt(a.iv)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.ic})</span></span></div>
           <div class="rep-metric"><span class="rep-metric-label">Quoted</span><span class="rep-metric-val sky">${fmt(a.qv)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.qc})</span></span></div>
           <div class="rep-metric"><span class="rep-metric-label">Orders</span><span class="rep-metric-val">${fmt(a.ov)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.oc})</span></span></div>
+          <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg inv</div><div style="font-size:12px;font-weight:700;color:#4ade80">${fmt(a.ic>0?Math.round(a.iv/a.ic):0)}</div></div>
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg qt</div><div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(a.qc>0?Math.round(a.qv/a.qc):0)}</div></div>
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg ord</div><div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(a.oc>0?Math.round(a.ov/a.oc):0)}</div></div>
+          </div>
         </div>
       </div>`;
   });
@@ -753,15 +758,6 @@ function renderScoreboard(){
     </div>
     <div class="sec-head"><h2>Rep scoreboard — ${monthLabel(mk)}</h2></div>
     <div class="rep-grid" id="rep-cards"></div>
-    <div class="sec-head"><h2>Breakdown</h2></div>
-    <div class="table-card">
-      <table>
-        <thead><tr>
-          <th>Rep</th><th class="r">Invoiced</th><th class="r">Quoted</th>
-          <th class="r">Orders</th><th class="r hide-mobile">Avg invoice</th><th class="r hide-mobile">Avg quote</th><th class="r hide-mobile">Daily inv avg</th></tr></thead>
-        <tbody id="score-tbody"></tbody>
-      </table>
-    </div>
     <div style="text-align:right;margin-top:8px">
       <button class="btn-small" onclick="exportCSV()">Export CSV</button>
     </div>
@@ -783,29 +779,15 @@ function renderScoreboard(){
           <div class="rep-metric"><span class="rep-metric-label">Invoiced</span><span class="rep-metric-val inv">${fmt(a.iv)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.ic})</span></span></div>
           <div class="rep-metric"><span class="rep-metric-label">Quoted</span><span class="rep-metric-val sky">${fmt(a.qv)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.qc})</span></span></div>
           <div class="rep-metric"><span class="rep-metric-label">Orders</span><span class="rep-metric-val">${fmt(a.ov)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${a.oc})</span></span></div>
+          <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg inv</div><div style="font-size:12px;font-weight:700;color:#4ade80">${fmt(a.ic>0?Math.round(a.iv/a.ic):0)}</div></div>
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg qt</div><div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(a.qc>0?Math.round(a.qv/a.qc):0)}</div></div>
+            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Avg ord</div><div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(a.oc>0?Math.round(a.ov/a.oc):0)}</div></div>
+          </div>
         </div>
       </div>`;
   });
 
-  const tbody=document.getElementById('score-tbody');
-  agg.forEach((a,i)=>{
-    const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
-    const pillClass=i===0?'pill-orange':i===1?'pill-sky':'pill-grey';
-    const avgInv=a.ic>0?Math.round(a.iv/a.ic):0;
-    const avgQ=a.qc>0?Math.round(a.qv/a.qc):0;
-    const dailyAvg=a.recorded>0?Math.round(a.iv/a.recorded):0;
-    tbody.innerHTML+=`<tr>
-      <td><span style="display:inline-flex;align-items:center;gap:8px">
-        <span style="width:24px;height:24px;border-radius:50%;background:${a.rep.colour};color:${a.rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${a.rep.initials}</span>
-        <span style="font-weight:700">${a.rep.name}</span></span></td>
-      <td class="r"><span style="font-weight:700;color:#4ade80">${fmt(a.iv)}</span><br><span style="font-size:10px;color:var(--hint)">${a.ic} invoices</span></td>
-      <td class="r"><span style="font-weight:700">${fmt(a.qv)}</span><br><span style="font-size:10px;color:var(--hint)">${a.qc} quotes</span></td>
-      <td class="r"><span style="font-weight:700">${fmt(a.ov)}</span><br><span style="font-size:10px;color:var(--hint)">${a.oc} orders</span></td>
-      <td class="r hide-mobile" style="color:#4ade80;font-weight:700">${fmt(avgInv)}</td>
-      <td class="r hide-mobile" style="font-weight:700">${fmt(avgQ)}</td>
-      <td class="r hide-mobile" style="font-weight:700">${fmt(dailyAvg)}</td>
-    </tr>`;
-  });
 }
 
 /* ── DAILY ── */
