@@ -842,8 +842,8 @@ function renderDailyCards(){
         <div class="daily-card-name">${rep.name}</div>
       </div>
       ${day?`
-        <div class="daily-row"><span class="daily-label">Quotes</span><span class="daily-val">${fmt(day.q_val)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${day.q_count})</span></span></div>
         <div class="daily-row"><span class="daily-label">Invoiced</span><span class="daily-val green">${fmt(day.i_val)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${day.i_count})</span></span></div>
+        <div class="daily-row"><span class="daily-label">Quoted</span><span class="daily-val">${fmt(day.q_val)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${day.q_count})</span></span></div>
         <div class="daily-row"><span class="daily-label">Orders</span><span class="daily-val">${fmt(day.o_val)} <span style="font-size:11px;color:var(--hint);font-weight:600">(${day.o_count})</span></span></div>
         ${day.notes?`<div class="daily-row"><span class="daily-label">Note</span><span class="daily-val" style="font-size:12px;color:var(--muted)">${day.notes}</span></div>`:''}
       `:`<div class="daily-row"><span class="daily-label" style="color:var(--hint)">No activity recorded</span></div>`}
@@ -1209,8 +1209,8 @@ function updateSubTotals(){
   const totO=REPS.reduce((s,r)=>s+gv(r.id+'_o_val'),0);
   const el=document.getElementById('sub-totals');
   if(el)el.innerHTML=`
-    <div class="sub-cell"><span class="sl">Quoted</span><span class="sv">${fmt(totQ)}</span></div>
     <div class="sub-cell"><span class="sl">Invoiced</span><span class="sv" style="color:#4ade80">${fmt(totI)}</span></div>
+    <div class="sub-cell"><span class="sl">Quoted</span><span class="sv">${fmt(totQ)}</span></div>
     <div class="sub-cell"><span class="sl">Orders</span><span class="sv">${fmt(totO)}</span></div>`;
 }
 
@@ -1371,7 +1371,7 @@ function importShowPreview(dateVal, data){
     <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${dLabel}</div>
     <table class="preview-table">
       <thead><tr>
-        <th>Rep</th><th class="r">Quotes</th><th class="r">Invoiced</th><th class="r">Orders</th>
+        <th>Rep</th><th class="r">Invoiced</th><th class="r">Quoted</th><th class="r">Orders</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1566,8 +1566,8 @@ function parseImport(){
       <td><span style="display:inline-flex;align-items:center;gap:8px">
         <span style="width:24px;height:24px;border-radius:50%;background:${rep.colour};color:${rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${rep.initials}</span>
         <span style="font-weight:700">${rep.name}</span></span></td>
-      <td class="r" style="${r.q_val>0?'font-weight:700':'color:var(--hint)'}">${r.q_count} · ${fmt(r.q_val)}</td>
       <td class="r" style="${r.i_val>0?'font-weight:700;color:#4ade80':'color:var(--hint)'}">${r.i_count} · ${fmt(r.i_val)}</td>
+      <td class="r" style="${r.q_val>0?'font-weight:700':'color:var(--hint)'}">${r.q_count} · ${fmt(r.q_val)}</td>
       <td class="r" style="${r.o_val>0?'font-weight:700':'color:var(--hint)'}">${r.o_count} · ${fmt(r.o_val)}</td>
     </tr>`;
   }).join('');
@@ -1577,7 +1577,7 @@ function parseImport(){
     <div class="table-card">
       <table>
         <thead><tr>
-          <th>Rep</th><th class="r">Quotes</th><th class="r">Invoiced</th><th class="r">Orders</th>
+          <th>Rep</th><th class="r">Invoiced</th><th class="r">Quoted</th><th class="r">Orders</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
