@@ -654,6 +654,8 @@ function renderAll(){
 }
 
 /* ── YTD ── */
+let ytdMetric='invoices';
+
 function renderYTD(){
   const mk=getSelMonth();
   const year=mk.split('-')[0];
@@ -668,9 +670,6 @@ function renderYTD(){
   const el=document.getElementById('ytd');
 
   const monthsWithData=Object.keys(DATA).filter(k=>k.startsWith(year+'-')).sort();
-  const monthRange=monthsWithData.length>0
-    ? monthsWithData[0].split('-')[1]*1+' — '+monthsWithData[monthsWithData.length-1].split('-')[1]*1+' '+year
-    : year;
 
   el.innerHTML=`
     <div class="strip">
@@ -681,23 +680,20 @@ function renderYTD(){
     </div>
     <div class="sec-head"><h2>Rep ranking — year to date ${year}</h2></div>
     <div class="rep-grid" id="ytd-cards"></div>
-    <div class="sec-head"><h2>Year to date breakdown</h2></div>
-    <div class="table-card">
-      <table>
-        <thead><tr>
-          <th>Rep</th><th class="r">Invoiced</th><th class="r">Quoted</th>
-          <th class="r">Orders</th><th class="r hide-mobile">Avg invoice</th><th class="r hide-mobile">Avg quote</th><th class="r hide-mobile">Daily inv avg</th>
-        </tr></thead>
-        <tbody id="ytd-tbody"></tbody>
-      </table>
+    <div class="sec-head" style="margin-top:28px">
+      <h2>Monthly breakdown</h2>
+      <div class="activity-metric-toggle">
+        <button class="act-btn ${ytdMetric==='invoices'?'active':''}" onclick="setYTDMetric('invoices')">Invoiced</button>
+        <button class="act-btn ${ytdMetric==='quotes'?'active':''}" onclick="setYTDMetric('quotes')">Quoted</button>
+        <button class="act-btn ${ytdMetric==='orders'?'active':''}" onclick="setYTDMetric('orders')">Orders</button>
+      </div>
     </div>
+    <div class="table-card" id="ytd-matrix-wrap"></div>
   `;
 
   const ranks=['1st','2nd','3rd','4th','5th','6th','7th','8th'];
   const cards=document.getElementById('ytd-cards');
   agg.forEach((a,i)=>{
-    const pct=maxIv>0?(a.iv/maxIv*100).toFixed(1):0;
-    const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
     const ytdTarget=(a.rep.monthly_target||100000)*Math.max(monthsWithData.length,1);
     cards.innerHTML+=`
       <div class="rep-card ${a.iv>=ytdTarget?'card-pulse':'card-red'}" style="border-width:3px">
@@ -719,22 +715,98 @@ function renderYTD(){
       </div>`;
   });
 
-  const tbody=document.getElementById('ytd-tbody');
-  agg.forEach((a,i)=>{
-    const share=totIv>0?(a.iv/totIv*100).toFixed(1):0;
-    const pillClass=i===0?'pill-orange':i===1?'pill-sky':'pill-grey';
-    tbody.innerHTML+=`<tr>
-      <td><span style="display:inline-flex;align-items:center;gap:8px">
-        <span style="width:24px;height:24px;border-radius:50%;background:${a.rep.colour};color:${a.rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${a.rep.initials}</span>
-        <span style="font-weight:700">${a.rep.name}</span></span></td>
-      <td class="r"><span style="font-weight:700;color:#4ade80">${fmt(a.iv)}</span><br><span style="font-size:10px;color:var(--hint)">${a.ic} invoices</span></td>
-      <td class="r"><span style="font-weight:700">${fmt(a.qv)}</span><br><span style="font-size:10px;color:var(--hint)">${a.qc} quotes</span></td>
-      <td class="r"><span style="font-weight:700">${fmt(a.ov)}</span><br><span style="font-size:10px;color:var(--hint)">${a.oc} orders</span></td>
-      <td class="r hide-mobile" style="color:#4ade80;font-weight:700">${fmt(a.ic>0?Math.round(a.iv/a.ic):0)}</td>
-      <td class="r hide-mobile" style="font-weight:700">${fmt(a.qc>0?Math.round(a.qv/a.qc):0)}</td>
-      <td class="r hide-mobile" style="font-weight:700">${fmt(a.recorded>0?Math.round(a.iv/a.recorded):0)}</td>
-    </tr>`;
+  buildYTDMatrix(year, monthsWithData, agg);
+}
+
+function setYTDMetric(metric){
+  ytdMetric=metric;
+  document.querySelectorAll('#ytd .act-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.toLowerCase()===metric);
   });
+  const mk=getSelMonth();
+  const year=mk.split('-')[0];
+  const monthsWithData=Object.keys(DATA).filter(k=>k.startsWith(year+'-')).sort();
+  const agg=aggYTD(year).sort((a,b)=>b.iv-a.iv);
+  buildYTDMatrix(year, monthsWithData, agg);
+}
+
+function buildYTDMatrix(year, monthsWithData, agg){
+  const wrap=document.getElementById('ytd-matrix-wrap');
+  if(!wrap) return;
+  if(!monthsWithData.length){wrap.innerHTML='<div class="no-data">No data for '+year+'</div>';return;}
+
+  const getVal=(repId, mk)=>{
+    const d=DATA[mk]||{};
+    const days=d[repId]||{};
+    let iv=0,ic=0,qv=0,qc=0,ov=0,oc=0;
+    Object.values(days).forEach(day=>{
+      if(!day)return;
+      iv+=day.i_val;ic+=day.i_count;
+      qv+=day.q_val;qc+=day.q_count;
+      ov+=day.o_val;oc+=day.o_count;
+    });
+    if(ytdMetric==='invoices') return{val:iv,cnt:ic};
+    if(ytdMetric==='quotes')   return{val:qv,cnt:qc};
+    return{val:ov,cnt:oc};
+  };
+
+  const colLabel=ytdMetric==='invoices'?'Invoiced':ytdMetric==='quotes'?'Quoted':'Orders';
+  const valColour=ytdMetric==='invoices'?'color:#4ade80':'';
+
+  // Build rep header cells
+  const repHeaders=agg.map(a=>`
+    <th style="min-width:110px;text-align:center">
+      <span style="display:inline-flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="width:24px;height:24px;border-radius:50%;background:${a.rep.colour};color:${a.rep.text_colour};display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">${a.rep.initials}</span>
+        <span style="font-weight:700">${a.rep.name}</span>
+      </span>
+    </th>`).join('');
+
+  // Build month rows
+  const rows=monthsWithData.map(mk=>{
+    const[y,m]=mk.split('-').map(Number);
+    const mLabel=new Date(y,m-1,1).toLocaleDateString('en-ZA',{month:'short',year:'numeric'});
+    // Find best performer for this month
+    const rowVals=agg.map(a=>({id:a.rep.id,val:getVal(a.rep.id,mk).val}));
+    const maxVal=Math.max(...rowVals.map(r=>r.val));
+    const bestId=maxVal>0?rowVals.find(r=>r.val===maxVal)?.id:null;
+    const cells=agg.map(a=>{
+      const {val,cnt}=getVal(a.rep.id,mk);
+      const target=a.rep.monthly_target||100000;
+      const meetsTarget=ytdMetric==='invoices'&&val>=target;
+      const isBest=bestId===a.rep.id&&val>0;
+      return `<td style="text-align:center">
+        <div style="font-weight:700;color:${meetsTarget?'#4ade80':'var(--white)'}">${val>0?fmt(val)+(isBest?' 🎉':''):'—'}</div>
+        ${cnt>0?`<div style="font-size:10px;color:var(--hint)">(${cnt})</div>`:''}
+      </td>`;
+    }).join('');
+    return `<tr><td style="font-weight:700;white-space:nowrap;color:var(--muted)">${mLabel}</td>${cells}</tr>`;
+  }).join('');
+
+  // Totals row — orange to differentiate
+  const totCells=agg.map(a=>{
+    let tv=0,tc=0;
+    monthsWithData.forEach(mk=>{const r=getVal(a.rep.id,mk);tv+=r.val;tc+=r.cnt;});
+    return `<td style="text-align:center;border-top:2px solid var(--border2)">
+      <div style="font-weight:800;font-size:14px;color:var(--orange)">${fmt(tv)}</div>
+      <div style="font-size:10px;color:var(--hint)">(${tc})</div>
+    </td>`;
+  }).join('');
+
+  wrap.innerHTML=`
+    <table>
+      <thead><tr>
+        <th style="min-width:90px">${colLabel}</th>
+        ${repHeaders}
+      </tr></thead>
+      <tbody>
+        ${rows}
+        <tr style="background:var(--navy3)">
+          <td style="font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-top:1px solid var(--border2)">Total</td>
+          ${totCells}
+        </tr>
+      </tbody>
+    </table>`;
 }
 
 /* ── SCOREBOARD ── */
