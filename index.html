@@ -923,143 +923,179 @@ function renderDailyCards(){
 }
 
 /* ── TRENDS ── */
+let trendView='invoiced';
+let trendRep='all';
+
 function renderTrends(){
-  const mk=getSelMonth();
-  const[y,m]=mk.split('-').map(Number);
-  const dim=new Date(y,m,0).getDate();
-  const today=new Date();
   const el=document.getElementById('trends');
-
-  const chartOptions=[
-    {id:'ch-cum',     label:'Cumulative invoiced'},
-    {id:'ch-inv-val', label:'Invoiced — daily value'},
-    {id:'ch-inv-cnt', label:'Invoiced — daily count'},
-    {id:'ch-q-val',   label:'Quoted — daily value'},
-    {id:'ch-q-cnt',   label:'Quoted — daily count'},
-    {id:'ch-o-val',   label:'Orders — daily value'},
-    {id:'ch-o-cnt',   label:'Orders — daily count'},
-  ];
-
   el.innerHTML=`
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
-      <select id="chart-picker" onchange="switchChart()" style="font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 14px;outline:none;cursor:pointer;min-width:240px">
-        ${chartOptions.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
-      </select>
+    <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:20px">
+      <div>
+        <div class="strip-label" style="margin-bottom:6px">View</div>
+        <div class="activity-metric-toggle" id="trend-view-btns">
+          <button class="act-btn ${trendView==='invoiced'?'active':''}" onclick="setTrendView('invoiced')">Invoiced</button>
+          <button class="act-btn ${trendView==='quoted'?'active':''}" onclick="setTrendView('quoted')">Quoted</button>
+          <button class="act-btn ${trendView==='orders'?'active':''}" onclick="setTrendView('orders')">Orders</button>
+          <button class="act-btn ${trendView==='comparison'?'active':''}" onclick="setTrendView('comparison')">Rep comparison</button>
+        </div>
+      </div>
+      <div>
+        <div class="strip-label" style="margin-bottom:6px">Rep</div>
+        <select id="trend-rep-sel" onchange="setTrendRep(this.value)" style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 12px;outline:none;cursor:pointer">
+          <option value="all">All reps</option>
+          ${REPS.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
+        </select>
+      </div>
     </div>
-    <div class="trend-toggles" id="tog-row"></div>
-    <div class="chart-card" id="active-chart-card">
-      <div class="chart-label" id="active-chart-label">Cumulative invoiced</div>
-      <div class="chart-wrap" style="height:360px"><canvas id="active-canvas"></canvas></div>
+    <div class="chart-card">
+      <div class="chart-label" id="trend-chart-label"></div>
+      <div class="chart-wrap" style="height:380px"><canvas id="trend-canvas"></canvas></div>
     </div>
+    <div class="activity-note" id="trend-note"></div>
   `;
-
-  const togs=document.getElementById('tog-row');
-  REPS.forEach(rep=>{
-    const btn=document.createElement('button');
-    btn.className='tog'+(activeReps.has(rep.id)?' on':'');
-    btn.textContent=rep.name;
-    btn.style.borderColor=rep.colour;
-    if(activeReps.has(rep.id)){btn.style.background=rep.colour;btn.style.color=rep.text_colour;}
-    btn.onclick=()=>{
-      if(activeReps.has(rep.id)){
-        activeReps.delete(rep.id);
-        btn.classList.remove('on');btn.style.background='transparent';btn.style.color='var(--muted)';
-      }else{
-        activeReps.add(rep.id);
-        btn.classList.add('on');btn.style.background=rep.colour;btn.style.color=rep.text_colour;
-      }
-      buildCharts(mk,y,m,dim,today);
-    };
-    togs.appendChild(btn);
-  });
-
-  // store for switchChart
-  window._trendState={mk,y,m,dim,today,chartOptions};
-  buildCharts(mk,y,m,dim,today);
+  document.getElementById('trend-rep-sel').value=trendRep;
+  buildTrendChart();
 }
 
-function switchChart(){
-  const sel=document.getElementById('chart-picker');
-  const state=window._trendState;
-  if(!sel||!state)return;
-  const chosen=state.chartOptions.find(c=>c.id===sel.value);
-  if(chosen){
-    const lbl=document.getElementById('active-chart-label');
-    if(lbl)lbl.textContent=chosen.label;
-  }
-  buildCharts(state.mk,state.y,state.m,state.dim,state.today);
+function setTrendView(v){
+  trendView=v;
+  document.querySelectorAll('#trend-view-btns .act-btn').forEach(b=>{
+    b.classList.toggle('active',b.textContent.toLowerCase()===v||(v==='comparison'&&b.textContent==='Rep comparison'));
+  });
+  buildTrendChart();
+}
+
+function setTrendRep(v){
+  trendRep=v;
+  buildTrendChart();
 }
 
 function destroyChart(id){if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}}
 
-function buildCharts(mk,y,m,dim,today){
-  const labels=[];
-  for(let d=1;d<=dim;d++){
-    const dt=new Date(y,m-1,d);
-    if(dt>today)break;
-    if(dt.getDay()===0||dt.getDay()===6)continue;
-    labels.push(d);
-  }
+function buildTrendChart(){
+  destroyChart('trend-canvas');
+  const canvas=document.getElementById('trend-canvas');
+  const label=document.getElementById('trend-chart-label');
+  const note=document.getElementById('trend-note');
+  if(!canvas)return;
 
   const gc='rgba(255,255,255,0.05)',tc='#6b6f8a';
-  const sl=labels.map(String);
-
+  const yAxis={grid:{color:gc},ticks:{color:tc,font:{family:'Nunito',size:12,weight:'600'},callback:v=>'R'+(v>=1000?Math.round(v/1000)+'k':v)}};
   const xAxis={grid:{color:gc},ticks:{color:tc,font:{family:'Nunito',size:12,weight:'600'}}};
-  const yRand={grid:{color:gc},ticks:{color:tc,font:{family:'Nunito',size:12,weight:'600'},callback:v=>'R'+(v>=1000?Math.round(v/1000)+'k':v)}};
-  const yCount={grid:{color:gc},ticks:{color:tc,font:{family:'Nunito',size:12,weight:'600'},callback:v=>Number.isInteger(v)?v:''}};
   const legendOpts={display:true,position:'top',labels:{color:tc,font:{family:'Nunito',size:12,weight:'600'},boxWidth:10,padding:14}};
+  const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:legendOpts},scales:{x:xAxis,y:yAxis}};
 
-  const lineOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:legendOpts},scales:{x:xAxis,y:yRand}};
-  const barRandOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:legendOpts},scales:{x:xAxis,y:yRand}};
-  const barCntOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:legendOpts},scales:{x:xAxis,y:yCount}};
+  // Get all months across all years sorted
+  const allMonths=Object.keys(DATA).sort();
+  if(!allMonths.length){
+    label.textContent='No data';
+    note.textContent='';
+    return;
+  }
 
-  // Build all datasets
-  const cumDS=[],invValDS=[],invCntDS=[],qValDS=[],qCntDS=[],oValDS=[],oCntDS=[];
-  REPS.filter(r=>activeReps.has(r.id)).forEach(rep=>{
-    const days=(DATA[mk]||{})[rep.id]||{};
-    const cumV=[],iV=[],iC=[],qV=[],qC=[],oV=[],oC=[];
-    let cs=0;
-    labels.forEach(d=>{
-      const day=days[d];
-      cs+=day?day.i_val:0;
-      cumV.push(cs);
-      iV.push(day?day.i_val:0); iC.push(day?day.i_count:0);
-      qV.push(day?day.q_val:0); qC.push(day?day.q_count:0);
-      oV.push(day?day.o_val:0); oC.push(day?day.o_count:0);
-    });
-    const col=rep.colour;
-    cumDS.push({label:rep.name,data:cumV,borderColor:col,backgroundColor:col+'18',borderWidth:2.5,pointRadius:3,tension:0.35,fill:false});
-    invValDS.push({label:rep.name,data:iV,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-    invCntDS.push({label:rep.name,data:iC,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-    qValDS.push({label:rep.name,data:qV,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-    qCntDS.push({label:rep.name,data:qC,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-    oValDS.push({label:rep.name,data:oV,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-    oCntDS.push({label:rep.name,data:oC,backgroundColor:col+'99',borderColor:col,borderWidth:1,borderRadius:4});
-  });
-
-  const chartMap={
-    'ch-cum':     {type:'line',datasets:cumDS,    opts:lineOpts},
-    'ch-inv-val': {type:'bar', datasets:invValDS, opts:barRandOpts},
-    'ch-inv-cnt': {type:'bar', datasets:invCntDS, opts:barCntOpts},
-    'ch-q-val':   {type:'bar', datasets:qValDS,   opts:barRandOpts},
-    'ch-q-cnt':   {type:'bar', datasets:qCntDS,   opts:barCntOpts},
-    'ch-o-val':   {type:'bar', datasets:oValDS,   opts:barRandOpts},
-    'ch-o-cnt':   {type:'bar', datasets:oCntDS,   opts:barCntOpts},
+  // Build monthly aggregates
+  const getMonthVal=(repId,mk)=>{
+    const days=(DATA[mk]||{})[repId]||{};
+    let iv=0,qv=0,ov=0;
+    Object.values(days).forEach(d=>{if(!d)return;iv+=d.i_val;qv+=d.q_val;ov+=d.o_val;});
+    return{iv,qv,ov};
   };
 
-  const sel=document.getElementById('chart-picker');
-  const activeId=sel?sel.value:'ch-cum';
-  const active=chartMap[activeId];
-  if(!active)return;
-
-  destroyChart('active-canvas');
-  const canvas=document.getElementById('active-canvas');
-  if(!canvas)return;
-  chartInstances['active-canvas']=new Chart(canvas,{
-    type:active.type,
-    data:{labels:sl,datasets:active.datasets},
-    options:active.opts
+  const mLabels=allMonths.map(mk=>{
+    const[y,m]=mk.split('-').map(Number);
+    return new Date(y,m-1,1).toLocaleDateString('en-ZA',{month:'short',year:'2-digit'});
   });
+
+  if(trendView==='comparison'){
+    // Horizontal bar — current selected month, all reps, selected metric
+    const mk=getSelMonth();
+    const mk_label=new Date(+mk.split('-')[0],+mk.split('-')[1]-1,1).toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
+    const repsToShow=REPS;
+    const vals=repsToShow.map(r=>{
+      const v=getMonthVal(r.id,mk);
+      return trendView==='comparison'?v.iv:0; // default invoiced for comparison
+    });
+    // Use trendRep to pick sub-metric for comparison
+    const compMetric=trendRep==='all'?'iv':trendRep;
+    const compVals=repsToShow.map(r=>{
+      const v=getMonthVal(r.id,mk);
+      return v.iv; // invoiced comparison
+    });
+    label.textContent=`Rep comparison — invoiced — ${mk_label}`;
+    note.textContent="Horizontal bars show each rep's invoiced value for the selected month.";
+    chartInstances['trend-canvas']=new Chart(canvas,{
+      type:'bar',
+      data:{
+        labels:repsToShow.map(r=>r.name),
+        datasets:[{
+          label:'Invoiced',
+          data:compVals,
+          backgroundColor:repsToShow.map(r=>r.colour+'cc'),
+          borderColor:repsToShow.map(r=>r.colour),
+          borderWidth:1.5,
+          borderRadius:6,
+        }]
+      },
+      options:{
+        ...baseOpts,
+        indexAxis:'y',
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{...yAxis},
+          y:{grid:{color:gc},ticks:{color:tc,font:{family:'Nunito',size:13,weight:'700'}}}
+        }
+      }
+    });
+    return;
+  }
+
+  // Monthly trend views
+  const metricKey=trendView==='invoiced'?'iv':trendView==='quoted'?'qv':'ov';
+  const metricLabel=trendView==='invoiced'?'Invoiced':trendView==='quoted'?'Quoted':'Orders';
+  const repsToShow=trendRep==='all'?REPS:REPS.filter(r=>r.id===trendRep);
+
+  if(trendRep==='all'){
+    // Grouped bars — all reps across all months
+    label.textContent=`${metricLabel} — monthly trend — all reps`;
+    note.textContent='Each group of bars shows one month. Compare reps side by side or look for overall growth.';
+    const datasets=repsToShow.map(rep=>({
+      label:rep.name,
+      data:allMonths.map(mk=>getMonthVal(rep.id,mk)[metricKey]),
+      backgroundColor:rep.colour+'aa',
+      borderColor:rep.colour,
+      borderWidth:1.5,
+      borderRadius:4,
+    }));
+    chartInstances['trend-canvas']=new Chart(canvas,{
+      type:'bar',
+      data:{labels:mLabels,datasets},
+      options:baseOpts
+    });
+  } else {
+    // Single rep — line showing their trend across all months
+    const rep=repsToShow[0];
+    const vals=allMonths.map(mk=>getMonthVal(rep.id,mk)[metricKey]);
+    label.textContent=`${rep.name} — ${metricLabel.toLowerCase()} — monthly trend`;
+    note.textContent=rep.name+" — "+metricLabel.toLowerCase()+" value per month. Rising line = growth.";
+    chartInstances['trend-canvas']=new Chart(canvas,{
+      type:'line',
+      data:{
+        labels:mLabels,
+        datasets:[{
+          label:metricLabel,
+          data:vals,
+          borderColor:rep.colour,
+          backgroundColor:rep.colour+'22',
+          borderWidth:2.5,
+          pointRadius:5,
+          pointBackgroundColor:rep.colour,
+          tension:0.3,
+          fill:true,
+        }]
+      },
+      options:{...baseOpts,plugins:{legend:{display:false}}}
+    });
+  }
 }
 
 /* ── ACTIVITY ── */
